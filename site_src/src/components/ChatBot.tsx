@@ -196,6 +196,15 @@ const DELIVERY_TEXT = {
   failed: "Авто-отправка письма сейчас недоступна. Отчёт уже доступен в чате и его можно скачать.",
 };
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function findQuestion(key: string) {
   return QUESTIONS.find((question) => question.key === key);
 }
@@ -330,38 +339,103 @@ function normalizeEmailError(message: string) {
   return DELIVERY_TEXT.failed;
 }
 
-function textFile(report: Report) {
-  return [
-    "Мини-отчёт по AI-диагностике",
-    "",
-    `Компания: ${report.companyName}`,
-    `Отрасль: ${INDUSTRY_LABELS[report.industry] || report.industry}`,
-    `Размер: ${report.companySizeLabel}`,
-    `Оценка: ${report.score}%`,
-    `Статус: ${report.level}`,
-    `Фокус: ${report.goalLabel}`,
-    `Контакт: ${report.contact.name}`,
-    `Email: ${report.contact.email}`,
-    `Телефон: ${report.contact.phone}`,
-    "",
-    "Краткий вывод",
-    report.summary,
-    "",
-    "Оценка по блокам",
-    ...report.breakdown.map((item) => `- ${item.category}: ${item.score}/${item.max}. ${item.comment}`),
-    "",
-    "Быстрые кейсы",
-    ...report.quickWins.map((item) => `- ${item}`),
-    "",
-    "Риски",
-    ...report.risks.map((item) => `- ${item}`),
-    "",
-    "Следующие шаги",
-    ...report.nextSteps.map((item) => `- ${item}`),
-    "",
-    "Рекомендация",
-    report.recommendation,
-  ].join("\n");
+function reportPdfMarkup(report: Report) {
+  const scoreColor = report.score >= 80 ? "#34d399" : report.score >= 55 ? "#fbbf24" : "#f87171";
+  const badgeColor = report.score >= 80 ? "rgba(52,211,153,0.15)" : report.score >= 55 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)";
+
+  const renderList = (items: string[]) =>
+    items
+      .map(
+        (item) => `
+          <li style="margin:0 0 10px 0; line-height:1.55; color:#d6daf0;">
+            ${escapeHtml(item)}
+          </li>`,
+      )
+      .join("");
+
+  const renderBreakdown = report.breakdown
+    .map((item) => {
+      const width = Math.max(10, Math.round((item.score / item.max) * 100));
+      return `
+        <div style="margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:6px;">
+            <strong style="font-size:14px; color:#f5f7ff;">${escapeHtml(item.category)}</strong>
+            <span style="font-size:13px; color:#9ca3bf;">${item.score}/${item.max}</span>
+          </div>
+          <div style="height:7px; background:#1b1c2b; border-radius:999px; overflow:hidden;">
+            <div style="height:100%; width:${width}%; background:linear-gradient(90deg, #7c3aed, ${scoreColor}); border-radius:999px;"></div>
+          </div>
+          <p style="margin:8px 0 0; font-size:12px; line-height:1.5; color:#9ca3bf;">${escapeHtml(item.comment)}</p>
+        </div>`;
+    })
+    .join("");
+
+  return `
+    <div style="width:794px; background:#090914; color:#f5f7ff; font-family:Inter, Arial, sans-serif; padding:36px; box-sizing:border-box;">
+      <div style="margin-bottom:28px;">
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.18em; color:#b892ff; margin-bottom:10px;">CoMind</div>
+        <h1 style="margin:0 0 10px; font-size:32px; line-height:1.05; font-weight:700;">Мини-отчёт по AI-диагностике</h1>
+        <p style="margin:0; font-size:14px; line-height:1.65; color:#b4b8cc;">${escapeHtml(report.summary)}</p>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1.3fr 0.7fr; gap:18px; margin-bottom:18px;">
+        <div style="border:1px solid rgba(255,255,255,0.08); border-radius:22px; background:#11121d; padding:24px;">
+          <div style="font-size:13px; color:#8e94af; margin-bottom:6px;">Компания</div>
+          <div style="font-size:26px; font-weight:700; margin-bottom:20px;">${escapeHtml(report.companyName)}</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 18px;">
+            <div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#717895; margin-bottom:4px;">Отрасль</div>
+              <div style="font-size:14px;">${escapeHtml(INDUSTRY_LABELS[report.industry] || report.industry)}</div>
+            </div>
+            <div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#717895; margin-bottom:4px;">Размер</div>
+              <div style="font-size:14px;">${escapeHtml(report.companySizeLabel)}</div>
+            </div>
+            <div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#717895; margin-bottom:4px;">Фокус</div>
+              <div style="font-size:14px;">${escapeHtml(report.goalLabel)}</div>
+            </div>
+            <div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#717895; margin-bottom:4px;">Статус</div>
+              <div style="font-size:14px;">${escapeHtml(report.leadStatus)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid rgba(255,255,255,0.08); border-radius:22px; background:#11121d; padding:24px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+          <div style="font-size:56px; line-height:1; font-weight:800; color:${scoreColor}; margin-bottom:10px;">${report.score}%</div>
+          <div style="display:inline-block; padding:8px 14px; border-radius:999px; background:${badgeColor}; color:${scoreColor}; font-size:12px; font-weight:700; margin-bottom:10px;">${escapeHtml(report.level)}</div>
+          <div style="font-size:13px; line-height:1.5; color:#a8aec8;">${escapeHtml(report.horizon)}</div>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,0.08); border-radius:22px; background:#11121d; padding:24px; margin-bottom:18px;">
+        <div style="font-size:18px; font-weight:700; margin-bottom:16px;">Оценка по блокам</div>
+        ${renderBreakdown}
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;">
+        <div style="border:1px solid rgba(255,255,255,0.08); border-radius:22px; background:#11121d; padding:24px;">
+          <div style="font-size:18px; font-weight:700; margin-bottom:14px;">Быстрые кейсы</div>
+          <ul style="padding-left:18px; margin:0;">${renderList(report.quickWins)}</ul>
+        </div>
+        <div style="border:1px solid rgba(255,255,255,0.08); border-radius:22px; background:#11121d; padding:24px;">
+          <div style="font-size:18px; font-weight:700; margin-bottom:14px;">Риски</div>
+          <ul style="padding-left:18px; margin:0;">${renderList(report.risks)}</ul>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(168,85,247,0.22); border-radius:22px; background:rgba(124,58,237,0.08); padding:24px; margin-bottom:18px;">
+        <div style="font-size:18px; font-weight:700; margin-bottom:14px;">Следующие шаги</div>
+        <ul style="padding-left:18px; margin:0 0 16px 0;">${renderList(report.nextSteps)}</ul>
+        <div style="font-size:13px; line-height:1.65; color:#c6cbea;">${escapeHtml(report.recommendation)}</div>
+      </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:16px; display:flex; justify-content:space-between; gap:16px; font-size:12px; color:#949ab5;">
+        <div>Контакт: ${escapeHtml(report.contact.name)} | ${escapeHtml(report.contact.email)} | ${escapeHtml(report.contact.phone)}</div>
+        <div>${escapeHtml(new Date(report.generatedAt).toLocaleDateString("ru-RU"))}</div>
+      </div>
+    </div>`;
 }
 
 export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -639,20 +713,55 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     handleAnswer(inputValue.trim());
   };
 
-  const downloadReport = () => {
+  const downloadReport = async () => {
     if (!report) {
       return;
     }
 
-    const blob = new Blob([textFile(report)], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `ai-report-${report.companyName.replace(/\s+/g, "-").toLowerCase() || "company"}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-99999px";
+    container.style.top = "0";
+    container.style.width = "794px";
+    container.style.zIndex = "-1";
+    container.innerHTML = reportPdfMarkup(report);
+    document.body.appendChild(container);
+
+    try {
+      const html2pdfModule = await import("html2pdf.js");
+      const html2pdf = (html2pdfModule.default || html2pdfModule) as {
+        (): {
+          from: (element: HTMLElement) => {
+            set: (options: Record<string, unknown>) => {
+              save: () => Promise<void>;
+            };
+          };
+        };
+      };
+
+      const filenameBase = report.companyName.replace(/\s+/g, "-").toLowerCase() || "company";
+      await html2pdf()
+        .from(container.firstElementChild as HTMLElement)
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: `ai-report-${filenameBase}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            backgroundColor: "#090914",
+            useCORS: true,
+          },
+          jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "portrait",
+          },
+          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+        })
+        .save();
+    } finally {
+      container.remove();
+    }
   };
 
   const currentQuestion = currentStep >= 0 && currentStep < QUESTIONS.length ? QUESTIONS[currentStep] : null;
