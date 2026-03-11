@@ -779,13 +779,13 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-          <div className="fixed inset-0 z-[201] flex items-stretch justify-stretch sm:items-end sm:justify-end sm:p-5">
+          <div className="fixed inset-0 z-[201] flex items-end justify-start p-3 sm:p-5">
           <motion.div
             initial={{ opacity: 0, y: 40, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[#0c0c16]/98 shadow-2xl shadow-purple-900/20 backdrop-blur-xl sm:h-[min(720px,calc(100dvh-2.5rem))] sm:max-h-[calc(100dvh-2.5rem)] sm:w-[460px] sm:rounded-[24px] sm:border sm:border-white/[0.08] sm:bg-[#0c0c16]/95"
+            className="flex h-[min(88dvh,760px)] max-h-[88dvh] min-h-0 w-[min(420px,calc(100vw-1.5rem))] max-w-[420px] flex-col overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#0c0c16]/95 shadow-2xl shadow-purple-900/20 backdrop-blur-xl sm:h-[min(720px,calc(100dvh-2.5rem))] sm:max-h-[calc(100dvh-2.5rem)] sm:w-[420px] sm:max-w-[420px]"
             onWheelCapture={(event) => event.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-4 sm:px-5">
