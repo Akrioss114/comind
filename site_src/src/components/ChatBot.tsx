@@ -376,6 +376,7 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const [sessionId, setSessionId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
@@ -541,18 +542,38 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       return;
     }
 
+    const scrollY = window.scrollY;
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyWidth = document.body.style.width;
+    const previousBodyLeft = document.body.style.left;
+    const previousBodyRight = document.body.style.right;
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
-    const previousTouchAction = document.body.style.touchAction;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
 
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
     document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
     document.documentElement.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
+    document.documentElement.style.overscrollBehavior = "none";
 
     return () => {
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.width = previousBodyWidth;
+      document.body.style.left = previousBodyLeft;
+      document.body.style.right = previousBodyRight;
       document.body.style.overflow = previousBodyOverflow;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
       document.documentElement.style.overflow = previousHtmlOverflow;
-      document.body.style.touchAction = previousTouchAction;
+      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
+      window.scrollTo({ top: scrollY, behavior: "auto" });
     };
   }, [isOpen]);
 
@@ -649,12 +670,14 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
+          <div className="fixed inset-0 z-[201] flex items-stretch justify-stretch sm:items-end sm:justify-end sm:p-5">
           <motion.div
             initial={{ opacity: 0, y: 40, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-[201] flex min-h-0 flex-col overflow-hidden bg-[#0c0c16]/98 shadow-2xl shadow-purple-900/20 backdrop-blur-xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,88vh)] sm:max-h-[calc(100dvh-2.5rem)] sm:w-[460px] sm:rounded-[24px] sm:border sm:border-white/[0.08] sm:bg-[#0c0c16]/95"
+            className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[#0c0c16]/98 shadow-2xl shadow-purple-900/20 backdrop-blur-xl sm:h-[min(720px,calc(100dvh-2.5rem))] sm:max-h-[calc(100dvh-2.5rem)] sm:w-[460px] sm:rounded-[24px] sm:border sm:border-white/[0.08] sm:bg-[#0c0c16]/95"
+            onWheelCapture={(event) => event.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-4 sm:px-5">
               <div className="flex items-center gap-3">
@@ -677,6 +700,7 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             </div>
 
             <div
+              ref={scrollAreaRef}
               className="hide-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5"
               style={{ overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
             >
@@ -835,6 +859,7 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               </div>
             )}
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
