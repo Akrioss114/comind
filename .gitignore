@@ -1,4 +1,8 @@
 site_src/node_modules/
 site_src/build/
 site_src/.npm-cache/
-
+backend/node_modules/
+_tmp_comind_ops/
+.env
+.env.local
+backend/.env

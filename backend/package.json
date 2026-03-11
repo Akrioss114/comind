@@ -1,0 +1,8 @@
+{
+  "name": "comind-ai-bot-backend",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nodemailer": "^6.10.1"
+  }
+}

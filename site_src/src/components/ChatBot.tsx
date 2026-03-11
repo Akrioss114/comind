@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Download, RotateCcw, Send, X } from "lucide-react";
-import { projectId, publicAnonKey } from "../utils/supabase/info";
 
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-1ff134d3`;
+const API_BASE = ((window as Window & { __AI_DIAGNOSTIC_API__?: string }).__AI_DIAGNOSTIC_API__ || import.meta.env.VITE_AI_DIAGNOSTIC_API || "").replace(/\/$/, "");
+const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const headers = {
   "Content-Type": "application/json",
-  Authorization: `Bearer ${publicAnonKey}`,
+  "X-Pinggy-No-Screen": "1",
 };
 
 type QuestionType = "text" | "email" | "tel" | "options";
@@ -482,41 +482,25 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     setSessionId(null);
   }, []);
 
-  const saveAnswer = useCallback(async (activeSessionId: string, questionKey: string, answer: string) => {
-    try {
-      await fetch(`${API_BASE}/chat-answer`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ sessionId: activeSessionId, questionKey, answer }),
-      });
-    } catch (error) {
-      console.error("Failed to save answer:", error);
-    }
-  }, []);
+  const saveAnswer = useCallback(async (_activeSessionId: string, _questionKey: string, _answer: string) => {}, []);
 
-  const sendEmail = useCallback(
-    async (activeSessionId: string, email: string) => {
-      setDelivery({ status: "sending", message: DELIVERY_TEXT.sending });
-
-      try {
-        const response = await fetch(`${API_BASE}/chat-send-email`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ sessionId: activeSessionId, email }),
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data?.error || DELIVERY_TEXT.failed);
-        }
-
-        setDelivery({ status: "sent", message: DELIVERY_TEXT.sent });
-        addBotMessage(DELIVERY_TEXT.sent);
-      } catch (error) {
-        const message = normalizeEmailError(error instanceof Error ? error.message : DELIVERY_TEXT.failed);
-        setDelivery({ status: "failed", message });
-        addBotMessage(message);
+  const applyDelivery = useCallback(
+    (serverDelivery?: { email?: { status?: string; message?: string } }) => {
+      const emailDelivery = serverDelivery?.email;
+      if (!emailDelivery || emailDelivery.status === "skipped") {
+        return;
       }
+
+      if (emailDelivery.status === "sent") {
+        const message = emailDelivery.message || DELIVERY_TEXT.sent;
+        setDelivery({ status: "sent", message });
+        addBotMessage(message);
+        return;
+      }
+
+      const message = normalizeEmailError(emailDelivery.message || DELIVERY_TEXT.failed);
+      setDelivery({ status: "failed", message });
+      addBotMessage(message);
     },
     [addBotMessage],
   );
@@ -526,12 +510,21 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       setIsLoading(true);
       addBotMessage("Анализирую ответы и собираю мини-отчёт.");
 
-      let base: BaseReport;
       try {
-        const response = await fetch(`${API_BASE}/chat-complete`, {
+        setDelivery({ status: "sending", message: DELIVERY_TEXT.sending });
+
+        const response = await fetch(apiUrl("/api/diagnostic/complete"), {
           method: "POST",
           headers,
-          body: JSON.stringify({ sessionId: activeSessionId }),
+          body: JSON.stringify({
+            sessionId: activeSessionId,
+            answers: nextAnswers,
+            metadata: {
+              source: "react-chatbot",
+              pageUrl: window.location.href,
+              referrer: document.referrer,
+            },
+          }),
         });
         const data = await response.json();
 
@@ -539,23 +532,20 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           throw new Error(data?.error || "Report generation failed");
         }
 
-        base = data.report;
+        setReport(data.report);
+        applyDelivery(data.delivery);
       } catch (error) {
         console.error("Using local report fallback:", error);
-        base = localReport(nextAnswers);
+        setReport(enrichReport(localReport(nextAnswers), nextAnswers));
+        const message = "Сервер недоступен: отчёт показан в чате, но письмо и CRM не отправлены.";
+        setDelivery({ status: "failed", message });
+        addBotMessage(message);
       }
 
-      const finalReport = enrichReport(base, nextAnswers);
-      setReport(finalReport);
       addBotMessage("Готово. Ниже уже есть ваш мини-отчёт с быстрыми кейсами и ближайшими шагами.");
-
-      if (nextAnswers.work_email) {
-        await sendEmail(activeSessionId, nextAnswers.work_email);
-      }
-
       setIsLoading(false);
     },
-    [addBotMessage, sendEmail],
+    [addBotMessage, applyDelivery],
   );
 
   useEffect(() => {
@@ -563,43 +553,28 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       return;
     }
 
-    const init = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/chat-session`, { method: "POST", headers });
-        const data = await response.json();
+    const nextSessionId = crypto.randomUUID();
+    setSessionId(nextSessionId);
+    setCurrentStep(0);
 
-        if (!data?.sessionId) {
-          throw new Error("Session init failed");
-        }
+    const welcomeId = crypto.randomUUID();
+    setMessages([{ id: welcomeId, type: "bot", text: "", isTyping: true }]);
 
-        setSessionId(data.sessionId);
-        setCurrentStep(0);
+    setTimeout(() => {
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === welcomeId
+            ? {
+                ...item,
+                isTyping: false,
+                text: "Проведу короткую AI-диагностику за 1-2 минуты. В конце попрошу контакты и подготовлю мини-отчёт.",
+              }
+            : item,
+        ),
+      );
 
-        const welcomeId = crypto.randomUUID();
-        setMessages([{ id: welcomeId, type: "bot", text: "", isTyping: true }]);
-
-        setTimeout(() => {
-          setMessages((prev) =>
-            prev.map((item) =>
-              item.id === welcomeId
-                ? {
-                    ...item,
-                    isTyping: false,
-                    text: "Проведу короткую AI-диагностику за 1-2 минуты. В конце попрошу контакты и подготовлю мини-отчёт.",
-                  }
-                : item,
-            ),
-          );
-
-          setTimeout(() => addBotMessage(QUESTIONS[0].text, QUESTIONS[0].options), 650);
-        }, 500);
-      } catch (error) {
-        console.error("Failed to create chat session:", error);
-        addBotMessage("Не удалось подключить диагностику. Попробуйте открыть форму ещё раз.");
-      }
-    };
-
-    init();
+      setTimeout(() => addBotMessage(QUESTIONS[0].text, QUESTIONS[0].options), 650);
+    }, 500);
   }, [addBotMessage, isOpen, sessionId]);
 
   useEffect(() => {
