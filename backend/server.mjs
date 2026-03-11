@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import nodemailer from "nodemailer";
 
+loadDotEnv(path.join(process.cwd(), ".env"));
 loadDotEnv(path.join(process.cwd(), "backend", ".env"));
 
 const PORT = Number(process.env.PORT || 8787);
@@ -126,7 +127,7 @@ function resolveOrigin(origin) {
 function setCorsHeaders(response, origin) {
   response.setHeader("Access-Control-Allow-Origin", resolveOrigin(origin));
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Pinggy-No-Screen");
   response.setHeader("Vary", "Origin");
 }
 

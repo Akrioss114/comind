@@ -2,6 +2,7 @@ site_src/node_modules/
 site_src/build/
 site_src/.npm-cache/
 backend/node_modules/
+backend/*.log
 _tmp_comind_ops/
 .env
 .env.local

@@ -6,8 +6,7 @@ const API_BASE = ((window as Window & { __AI_DIAGNOSTIC_API__?: string }).__AI_D
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const headers = {
-  "Content-Type": "application/json",
-  "X-Pinggy-No-Screen": "1",
+  "Content-Type": "text/plain;charset=UTF-8",
 };
 
 type QuestionType = "text" | "email" | "tel" | "options";

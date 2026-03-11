@@ -407,7 +407,7 @@
     try {
       var response = await fetch((this.config.apiBase || "") + "/api/diagnostic/complete", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Pinggy-No-Screen": "1" },
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
         body: JSON.stringify({
           answers: this.answers,
           metadata: {
