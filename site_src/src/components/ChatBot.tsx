@@ -536,6 +536,26 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     setTimeout(() => inputRef.current?.focus(), 700);
   }, [currentStep, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, [isOpen]);
+
   const handleAnswer = useCallback(
     async (answer: string, displayText?: string) => {
       const question = QUESTIONS[currentStep];
@@ -634,9 +654,9 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-3 z-[201] flex flex-col overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#0c0c16]/95 shadow-2xl shadow-purple-900/20 backdrop-blur-xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,88vh)] sm:w-[460px]"
+            className="fixed inset-0 z-[201] flex min-h-0 flex-col overflow-hidden bg-[#0c0c16]/98 shadow-2xl shadow-purple-900/20 backdrop-blur-xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,88vh)] sm:max-h-[calc(100dvh-2.5rem)] sm:w-[460px] sm:rounded-[24px] sm:border sm:border-white/[0.08] sm:bg-[#0c0c16]/95"
           >
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-4 sm:px-5">
               <div className="flex items-center gap-3">
                 <div className="h-2 w-2 rounded-full bg-purple-400 animate-pulse" />
                 <div>
@@ -656,7 +676,10 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               </div>
             </div>
 
-            <div className="hide-scrollbar space-y-4 flex-1 overflow-y-auto p-4 sm:p-5">
+            <div
+              className="hide-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5"
+              style={{ overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+            >
               {messages.map((message) => (
                 <motion.div key={message.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed sm:max-w-[85%] ${message.type === "user" ? "border border-purple-500/20 bg-purple-500/15 text-white/90" : "border border-white/[0.06] bg-white/[0.03] text-white/70"}`}>
@@ -779,7 +802,7 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             </div>
 
             {showInput && (
-              <form onSubmit={handleSubmit} className="border-t border-white/[0.06] px-4 py-4 sm:px-5">
+              <form onSubmit={handleSubmit} className="shrink-0 border-t border-white/[0.06] px-4 py-4 sm:px-5">
                 <div className="flex items-center gap-3">
                   <input
                     ref={inputRef}
@@ -801,7 +824,7 @@ export function ChatBot({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             )}
 
             {currentStep >= 0 && currentStep < QUESTIONS.length && (
-              <div className="px-4 pb-3 sm:px-5">
+              <div className="shrink-0 px-4 pb-3 sm:px-5">
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-[10px] text-white/20">{currentQuestion?.stage === "contact" ? "Контакты" : "Диагностика"}</span>
                   <span className="font-mono text-[10px] text-white/20">{currentStep + 1}/{QUESTIONS.length}</span>
